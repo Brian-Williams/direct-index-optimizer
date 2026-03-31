@@ -61,6 +61,37 @@ footer {
 .cache-upload { margin-top: 1rem; }
 .cache-upload label { font-weight: 500; font-size: 0.9rem; }
 
+.advanced-details {
+  margin-bottom: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.advanced-summary {
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #4a5568;
+  cursor: pointer;
+  background: #f7fafc;
+  user-select: none;
+  list-style: none;
+}
+.advanced-summary::-webkit-details-marker { display: none; }
+.advanced-summary::before {
+  content: "▶ ";
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+details[open] .advanced-summary::before { content: "▼ "; }
+.advanced-summary:hover { background: #edf2f7; }
+
+.advanced-body {
+  padding: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
 .run-btn {
   background: #2b6cb0;
   color: white;

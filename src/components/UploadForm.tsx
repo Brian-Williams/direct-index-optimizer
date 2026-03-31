@@ -10,7 +10,7 @@ interface Props {
 export function UploadForm({ onResult }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [useCache, setUseCache] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [target, setTarget] = useState("900000");
   const csvRef = useRef<HTMLInputElement>(null);
   const cacheRef = useRef<HTMLInputElement>(null);
@@ -33,35 +33,24 @@ export function UploadForm({ onResult }: Props) {
 
     setLoading(true);
     try {
-      // Parse portfolio CSV
       const csvText = await csvFile.text();
       const { holdings, warnings } = parsePortfolioCsv(csvText);
 
-      // Load S&P 500 weights
+      // Load weights: custom uploaded cache > bundled cache
       let sp500Weights: Record<string, number>;
-      if (useCache) {
-        // Use custom uploaded cache if provided, otherwise fetch bundled cache
-        const customCache = cacheRef.current?.files?.[0];
-        if (customCache) {
-          const cacheText = await customCache.text();
-          sp500Weights = JSON.parse(cacheText);
-        } else {
-          // Fetch the bundled cache from the public folder
-          const base = import.meta.env.BASE_URL;
-          const resp = await fetch(`${base}sp500_cache.json`);
-          if (!resp.ok) throw new Error("Failed to load bundled S&P 500 cache.");
-          sp500Weights = await resp.json();
-        }
+      const customCache = cacheRef.current?.files?.[0];
+      if (customCache) {
+        const cacheText = await customCache.text();
+        sp500Weights = JSON.parse(cacheText);
       } else {
-        throw new Error(
-          "Live S&P 500 data fetch is not available in the browser. " +
-          "Please use the cached index or upload a fresh sp500_cache.json. " +
-          "You can regenerate it locally by running: python -c \"from acats_transfer_optimizer.index_fetcher import fetch_sp500_weights; import json; json.dump(fetch_sp500_weights(), open('sp500_cache.json','w'))\""
-        );
+        const base = import.meta.env.BASE_URL;
+        const resp = await fetch(`${base}sp500_cache.json`);
+        if (!resp.ok) throw new Error("Failed to load bundled S&P 500 cache.");
+        sp500Weights = await resp.json();
       }
 
       const plan = computeTransferPlan(holdings, sp500Weights, targetNum);
-      onResult({ plan, warnings, usedCache: useCache });
+      onResult({ plan, warnings, usedCache: !customCache });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -74,7 +63,9 @@ export function UploadForm({ onResult }: Props) {
       <div className="form-group">
         <label htmlFor="csv_file">Fidelity Portfolio CSV</label>
         <input id="csv_file" type="file" accept=".csv" ref={csvRef} required />
-        <span className="hint">Export from Fidelity: Accounts → Portfolio → Download</span>
+        <span className="hint">
+          Export from Fidelity: Accounts &rarr; Portfolio &rarr; Download
+        </span>
       </div>
 
       <div className="form-group">
@@ -88,27 +79,23 @@ export function UploadForm({ onResult }: Props) {
         />
       </div>
 
-      <div className="form-group cache-group">
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={useCache}
-            onChange={(e) => setUseCache(e.target.checked)}
-          />
-          Use cached S&amp;P 500 index (fast)
-        </label>
-        <span className="hint">
-          Uses the bundled index snapshot for instant results.
-          Uncheck to upload a fresh cache file instead.
-        </span>
-        {useCache && (
-          <div className="cache-upload">
-            <label htmlFor="cache_file">Upload fresh sp500_cache.json (optional)</label>
+      <details
+        className="advanced-details"
+        open={showAdvanced}
+        onToggle={(e) => setShowAdvanced((e.currentTarget as HTMLDetailsElement).open)}
+      >
+        <summary className="advanced-summary">Advanced</summary>
+        <div className="advanced-body">
+          <div className="form-group">
+            <label htmlFor="cache_file">Upload custom S&amp;P 500 cache (optional)</label>
             <input id="cache_file" type="file" accept=".json" ref={cacheRef} />
-            <span className="hint">Leave blank to use the bundled snapshot.</span>
+            <span className="hint">
+              Upload a fresh <code>sp500_cache.json</code> to override the bundled index snapshot.
+              Leave blank to use the bundled snapshot (recommended).
+            </span>
           </div>
-        )}
-      </div>
+        </div>
+      </details>
 
       {error && <div className="error-box">{error}</div>}
 
